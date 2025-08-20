@@ -1,0 +1,5 @@
+menuconfig MODULES_PAYLOAD_DEPLOYER
+	bool "payload_deployer"
+	default n
+	---help---
+		Enable payload_deployer module
