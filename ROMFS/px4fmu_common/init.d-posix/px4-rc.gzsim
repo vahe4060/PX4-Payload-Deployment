@@ -15,7 +15,7 @@ fi
 # Use sort compare, check that MIN_GZ_VERSION is ordered last
 if [ "$(printf '%s\n' "$GZ_SIM_VERSION" "$MIN_GZ_VERSION" | sort -V | head -n1)" = "$MIN_GZ_VERSION" ]; then
 	gz_command="gz"
-	gz_sub_command="sim"
+	gz_sub_command="sim --render-engine ogre"
 
 	# Specify render engine if `GZ_SIM_RENDER_ENGINE` is set
 	# (for example, if you want to use Ogre 1.x instead of Ogre 2.x):
