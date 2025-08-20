@@ -76,10 +76,32 @@ int PayloadDeployer::print_usage(const char *reason) {
 	PRINT_MODULE_DESCRIPTION(
 		R"DESCR_STR(
 ### Description
-Handles payload deployment
+Handles payload deployment for each item based on its aerodynamic properties so that it reaches to
+its destination (lat, lon) from specified drop altitude with smallest margin error.
+Number of payloads is not limited, however each payload
+must have its unique drop priority index (the smaller the sooner).
 
+	add [index] [weight(kg)] [area_x(sq.m)] [area_y(sq.m)] [drag_coef] [alt(m)]
+	    [lat(WGS84)] [lon(WGS84)] [pwm_id] [pwm_open_freq] [pwm_close_freq]
+		example:
+			add  1050  1.2  0.01  0.042  0.1  150  40.175885  44.612789  12  950  1450
+	edit [index] [FIELD_NAME] [NEW_VALUE]
+		example:
+			edit  1050  weight  1.35
+	test_servo [index]
+		example:
+			test_servo  1050
+	remove [index]
+		example:
+			remove  1050
 )DESCR_STR");
-
+	PRINT_MODULE_USAGE_NAME("payload_deployer", "command");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("add [index ...]", "Add a new payload.");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("edit [index ...]", "Edit payload properties.");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("test_servo [index]", "Test servo open/close functionality.");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("remove [index]", "Remove the payload.");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("list", "List the payloads.");
+	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
 	return PX4_OK;
 }
 
@@ -91,7 +113,6 @@ void PayloadDeployer::Run() {
 int PayloadDeployer::print_status() {
 	return 0;
 }
-
 
 int payload_deployer_main(int argc, char *argv[]) {
 	return PayloadDeployer::main(argc, argv);
