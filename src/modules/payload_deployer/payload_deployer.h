@@ -35,5 +35,48 @@
  * @file payload_deployer.h
  * @author Vahe Yepremyan (vahe200000@gmail.com)
  */
+#pragma once
 
- extern "C" __EXPORT int payload_deployer_main(int argc, char *argv[]);
+#include <px4_platform_common/module.h>
+#include <px4_platform_common/module_params.h>
+#include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
+#include <uORB/SubscriptionInterval.hpp>
+#include <uORB/topics/parameter_update.h>
+
+using namespace time_literals;
+
+extern "C" __EXPORT int payload_deployer_main(int argc, char *argv[]);
+
+class PayloadDeployer : public ModuleBase<PayloadDeployer>, public ModuleParams, public px4::ScheduledWorkItem
+{
+public:
+	PayloadDeployer();
+
+	virtual ~PayloadDeployer() = default;
+
+	/** @see ModuleBase */
+	static int task_spawn(int argc, char *argv[]);
+
+	/** @see ModuleBase */
+	static int custom_command(int argc, char *argv[]);
+
+	/** @see ModuleBase. Override "status" output when invoked via Commandline, to give detailed status **/
+	static int print_usage(const char *reason = nullptr);
+
+	/**
+	 * @brief Main Run function that runs when subscription callback is triggered
+	 */
+	void Run() override;
+
+	/** @see ModuleBase::print_status() */
+	int print_status() override;
+private:
+	/**
+	 * Check for parameter changes and update them if needed.
+	 * @param parameter_update_sub uorb subscription to parameter_update
+	 * @param force for a parameter update
+	 */
+	void parameters_update(bool force = false);
+	// Subscriptions
+	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
+};

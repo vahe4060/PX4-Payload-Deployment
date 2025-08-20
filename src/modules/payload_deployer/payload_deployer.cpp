@@ -32,8 +32,67 @@
  ****************************************************************************/
 
 #include "payload_deployer.h"
+#include "payload.h"
+
+
+PayloadDeployer::PayloadDeployer()
+	: ModuleBase<PayloadDeployer>()
+	, ModuleParams(nullptr)
+	, ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::lp_default)
+{
+}
+
+/* idk for now */
+int PayloadDeployer::task_spawn(int argc, char *argv[]) {
+	PayloadDeployer *instance = new PayloadDeployer();
+	if (instance) {
+		_object.store(instance);
+		_task_id = task_id_is_work_queue;
+
+		if (instance) {
+			return PX4_OK;
+		}
+
+	} else {
+		PX4_ERR("Alloc failed");
+	}
+	// Cleanup instance in memory and mark this module as invalid to run
+	delete instance;
+	_object.store(nullptr);
+	_task_id = -1;
+
+	return PX4_ERROR;
+}
+
+int PayloadDeployer::custom_command(int argc, char *argv[]) {
+	return 0;
+}
+
+int PayloadDeployer::print_usage(const char *reason) {
+	if (reason) {
+		PX4_WARN("%s\n", reason);
+	}
+
+	PRINT_MODULE_DESCRIPTION(
+		R"DESCR_STR(
+### Description
+Handles payload deployment
+
+)DESCR_STR");
+
+	return PX4_OK;
+}
+
+void PayloadDeployer::Run() {
+
+}
+
+/** @see ModuleBase::print_status() */
+int PayloadDeployer::print_status() {
+	return 0;
+}
+
 
 int payload_deployer_main(int argc, char *argv[]) {
-
-	return 0;
+	return PayloadDeployer::main(argc, argv);
 }
