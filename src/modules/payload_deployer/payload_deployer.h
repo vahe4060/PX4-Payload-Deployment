@@ -37,11 +37,13 @@
  */
 #pragma once
 
+#include <containers/IntrusiveSortedList.hpp>
 #include <px4_platform_common/module.h>
 #include <px4_platform_common/module_params.h>
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
 #include <uORB/SubscriptionInterval.hpp>
 #include <uORB/topics/parameter_update.h>
+#include "payload.h"
 
 using namespace time_literals;
 
@@ -70,6 +72,22 @@ public:
 
 	/** @see ModuleBase::print_status() */
 	int print_status() override;
+
+	/* add a new payload */
+	bool add(int argc, char *argv[]);
+
+	/* edit an existing payload by its index */
+	bool edit(int argc, char *argv[]);
+
+	/* remove an existing payload by its index */
+	bool remove(int argc, char *argv[]);
+
+	/* test servo of payload by its index*/
+	bool test_servo(int argc, char *argv[]);
+
+	/* list added payloads */
+	bool list();
+
 private:
 	/**
 	 * Check for parameter changes and update them if needed.
@@ -79,4 +97,6 @@ private:
 	void parameters_update(bool force = false);
 	// Subscriptions
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
+
+	IntrusiveSortedList<Payload *> _payloads;
 };

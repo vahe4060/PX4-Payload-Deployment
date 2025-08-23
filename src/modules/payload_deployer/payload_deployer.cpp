@@ -32,7 +32,6 @@
  ****************************************************************************/
 
 #include "payload_deployer.h"
-#include "payload.h"
 
 
 PayloadDeployer::PayloadDeployer()
@@ -48,12 +47,9 @@ int PayloadDeployer::task_spawn(int argc, char *argv[]) {
 	if (instance) {
 		_object.store(instance);
 		_task_id = task_id_is_work_queue;
-
-		if (instance) {
-			return PX4_OK;
-		}
-
-	} else {
+		return PX4_OK;
+	}
+	else {
 		PX4_ERR("Alloc failed");
 	}
 	// Cleanup instance in memory and mark this module as invalid to run
@@ -64,8 +60,50 @@ int PayloadDeployer::task_spawn(int argc, char *argv[]) {
 	return PX4_ERROR;
 }
 
+/* add a new payload */
+bool PayloadDeployer::add(int argc, char *argv[]) {
+
+	return false;
+}
+
+/* edit an existing payload by its index */
+bool PayloadDeployer::edit(int argc, char *argv[]) {
+
+	return false;
+}
+
+/* remove an existing payload by its index */
+bool PayloadDeployer::remove(int argc, char *argv[]) {
+
+	return false;
+}
+
+/* test servo of payload by its index*/
+bool PayloadDeployer::test_servo(int argc, char *argv[]) {
+
+	return false;
+}
+
+/* list added payloads */
+bool PayloadDeployer::list() {
+
+	return false;
+}
+
 int PayloadDeployer::custom_command(int argc, char *argv[]) {
-	return 0;
+	if (argc == 0)
+		return print_usage();
+	else if (strcmp(argv[0], "add") == 0)
+		return _object.load()->add(argc + 1, argv + 1);
+	else if (strcmp(argv[0], "edit") == 0)
+		return _object.load()->edit(argc + 1, argv + 1);
+	else if (strcmp(argv[0], "remove") == 0)
+		return _object.load()->remove(argc + 1, argv + 1);
+	else if (strcmp(argv[0], "test_servo") == 0)
+		return _object.load()->test_servo(argc + 1, argv + 1);
+	else if (strcmp(argv[0], "list") == 0)
+		return _object.load()->list();
+	return print_usage("Unrecognized command");
 }
 
 int PayloadDeployer::print_usage(const char *reason) {
