@@ -87,5 +87,5 @@ public:
 
 private:
 
-	IntrusiveSortedList<Payload *> _payloads;
+	static IntrusiveSortedList<Payload *> _payloads;
 };

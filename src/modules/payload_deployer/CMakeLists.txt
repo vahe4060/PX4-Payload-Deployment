@@ -36,6 +36,8 @@ px4_add_module(
 	MAIN payload_deployer
 	SRCS
 		payload_deployer.cpp
+	COMPILE_FLAGS
+		-Wno-double-promotion
 	DEPENDS
 		px4_work_queue
 	)

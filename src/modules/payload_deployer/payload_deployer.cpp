@@ -40,11 +40,14 @@ inline bool expect_eq(T a, T b, float eps = 1e-5f) {
 	return true;
 }
 
+IntrusiveSortedList<Payload *> PayloadDeployer::_payloads;
+
 PayloadDeployer::PayloadDeployer()
 	: ModuleBase<PayloadDeployer>()
 	, ModuleParams(nullptr)
 	, ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::lp_default)
 {
+	printf("CP: BRO, IS THIS EVER GETTING CALLLED ON SUM SHI?");
 }
 
 /* idk for now */
@@ -90,8 +93,13 @@ bool PayloadDeployer::add(int size, char *args[]) {
 		PX4_ERR("Invalid arguments");
 		return PX4_ERROR;
 	}
-	_payloads.add(new Payload(index, weight, area_x, area_y, drag_coef, alt,
-				  lat, lon, pwm_id, pwm_open_freq, pwm_close_freq));
+	Payload *new_item = new Payload(index, weight, area_x, area_y, drag_coef, alt,
+				  lat, lon, pwm_id, pwm_open_freq, pwm_close_freq);
+	if (!new_item)
+		PX4_ERR("Allocation error");
+	printf("CP: SIZE INITIALLY IS :%d\n", _payloads.size());
+
+	// _payloads.add(new_item);
 	return PX4_OK;
 }
 
@@ -115,7 +123,32 @@ bool PayloadDeployer::test_servo(int argc, char *argv[]) {
 
 /* list added payloads */
 bool PayloadDeployer::list() {
-
+	printf("[Index]  [Weight(kg)]  [area_x(sqm)]  [area_y(sqm)]  [drag_coef]  [pwm_id]  [pwm_open]  [pwm_close]  [alt(m)]  [lat(WGS84)]  [lon(WGS84)]\n");
+	// for (auto it = _payloads.begin(); it != _payloads.end(); ++it) {
+		// std::cout << std::setw(9)  << it->_index
+		// 	  << std::setw(13) << it->_weight
+		// 	  << std::setw(15) << it->_area_x
+		// 	  << std::setw(15) << it->_area_y
+		// 	  << std::setw(13) << it->_drag_coef
+		// 	  << std::setw(10) << it->_pwm_id
+		// 	  << std::setw(12) << it->_pwm_open_freq
+		// 	  << std::setw(13) << it->_pwm_close_freq
+		// 	  << std::setw(10) << it->_alt
+		// 	  << std::setw(14) << it->_lat
+		// 	  << std::setw(14) << it->_lon << std::endl;
+		// printf("%d, %.5f, %.5f, %.5f, %.5f, %d, %d, %d, %.5f, %.9lf, %.9lf\n",
+		// 	(*it)->_index,
+		// 	(*it)->_weight,
+		// 	(*it)->_area_x,
+		// 	(*it)->_area_y,
+		// 	(*it)->_drag_coef,
+		// 	(*it)->_pwm_id,
+		// 	(*it)->_pwm_open_freq,
+		// 	(*it)->_pwm_close_freq,
+		// 	(*it)->_altitude,
+		// 	(*it)->_destination_lat,
+		// 	(*it)->_destination_lon);
+	// }
 	return PX4_OK;
 }
 
@@ -123,15 +156,15 @@ int PayloadDeployer::custom_command(int argc, char *argv[]) {
 	if (argc == 0)
 		return print_usage();
 	else if (strcmp(argv[0], "add") == 0)
-		return _object.load()->add(argc - 1, argv + 1);
+		return get_instance()->add(argc - 1, argv + 1);
 	else if (strcmp(argv[0], "edit") == 0)
-		return _object.load()->edit(argc - 1, argv + 1);
+		return get_instance()->edit(argc - 1, argv + 1);
 	else if (strcmp(argv[0], "remove") == 0)
-		return _object.load()->remove(argc - 1, argv + 1);
+		return get_instance()->remove(argc - 1, argv + 1);
 	else if (strcmp(argv[0], "test_servo") == 0)
-		return _object.load()->test_servo(argc - 1, argv + 1);
+		return get_instance()->test_servo(argc - 1, argv + 1);
 	else if (strcmp(argv[0], "list") == 0)
-		return _object.load()->list();
+		return get_instance()->list();
 	return print_usage("Unrecognized command");
 }
 

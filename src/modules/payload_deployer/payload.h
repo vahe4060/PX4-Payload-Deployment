@@ -7,7 +7,8 @@ struct Payload: public IntrusiveSortedListNode<Payload *>
 		float drag_coef, float altitude,
 		double destination_lat, double destination_lon,
 		int pwm_id, int pwm_open_freq, int pwm_close_freq)
-		: _index(index)
+		: IntrusiveSortedListNode<Payload *>()
+		, _index(index)
 		, _weight(weight)
 		, _area_x(area_x)
 		, _area_y(area_y)
