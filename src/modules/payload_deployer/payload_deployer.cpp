@@ -34,12 +34,14 @@
 #include "payload_deployer.h"
 #include <limits.h>
 
-template <typename T>
-inline bool expect_eq(T a, T b, float eps = 1e-5f) {
-	if (std::fabs(a - b) >= static_cast<T>(eps))
-		return false;
-	return true;
+inline bool expect_eq(float a, float b, float eps = 1e-5f) {
+    return (a > b ? a - b : b - a) < eps;
 }
+
+inline bool expect_eq(double a, double b, double eps = 1e-9) {
+    return (a > b ? a - b : b - a) < eps;
+}
+
 
 IntrusiveSortedList<Payload *> PayloadDeployer::_payloads;
 
@@ -47,9 +49,7 @@ PayloadDeployer::PayloadDeployer()
 	: ModuleBase<PayloadDeployer>()
 	, ModuleParams(nullptr)
 	, ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::lp_default)
-{
-	printf("CP: BRO, IS THIS EVER GETTING CALLLED ON SUM SHI?");
-}
+{}
 
 /* idk for now */
 int PayloadDeployer::task_spawn(int argc, char *argv[]) {
@@ -89,42 +89,137 @@ bool PayloadDeployer::add(int size, char *args[]) {
 	double	lat = strtod(args[6], NULL),
 		lon = strtod(args[7], NULL);
 	if (index == 0 || pwm_id == 0 || pwm_open_freq == 0 || pwm_close_freq == 0 ||
-	    expect_eq(weight, 0.f) || expect_eq(area_x, 0.f) || expect_eq(area_y, 0.f) ||
-	    expect_eq(drag_coef, 0.f) || expect_eq(alt, 0.f) || expect_eq(lat, 0.) ||
-	    expect_eq(lon, 0.)) {
+	    expect_eq(weight, 0) || expect_eq(area_x, 0) || expect_eq(area_y, 0) ||
+	    expect_eq(drag_coef, 0) || expect_eq(alt, 0) || expect_eq(lat, 0) ||
+	    expect_eq(lon, 0)) {
 		PX4_ERR("Invalid arguments");
 		return PX4_ERROR;
+	}
+	for (const Payload *it: _payloads) {
+		if (it->_index == index) {
+			PX4_ERR("Payload with index already exists.");
+			return PX4_ERROR;
+		}
 	}
 	Payload *new_item = new Payload(index, weight, area_x, area_y, drag_coef, alt,
 				  lat, lon, pwm_id, pwm_open_freq, pwm_close_freq);
 	if (!new_item)
-		PX4_ERR("Allocation error");
-	printf("CP: SIZE INITIALLY IS :%d\n", _payloads.size());
+		PX4_ERR("Allocation error.");
 	_payloads.add(new_item);
 	return PX4_OK;
 }
 
 /* edit an existing payload by its index */
-bool PayloadDeployer::edit(int argc, char *argv[]) {
-
+bool PayloadDeployer::edit(int size, char *args[]) {
+	if (size != 3)
+		return print_usage("payload_deployer edit INDEX FIELD_NAME NEW_VALUE");
+	unsigned	index = (atoi(args[0]) > USHRT_MAX ||
+				 atoi(args[0]) <= 0)? 0 : atoi(args[0]);
+	Payload *item = nullptr;
+	for (Payload *it: _payloads) {
+		if (it->_index == index) {
+			item = it; break;
+		}
+	}
+	if (!item) {
+		PX4_ERR("Couldn't find item with specified index.");
+		return PX4_ERROR;
+	}
+	auto set_val = [] (const char *name, auto &address, auto parse_func, auto validate_func) {
+		auto new_val = parse_func();
+		if (!validate_func(new_val)) {
+			PX4_ERR("Invalid value specified for field");
+			return PX4_ERROR;
+		}
+		address = new_val;
+		return PX4_OK;
+	};
+	if (strcmp(args[1], "index") == 0) {
+		return set_val("index", item->_index,
+				[&args]() {
+					return (unsigned)((atoi(args[2]) > USHRT_MAX ||
+							   atoi(args[2]) <= 0)? 0 : atoi(args[2]));
+				},
+				[](unsigned val) {
+					for (Payload *it: _payloads) {
+						if (it->_index == val) {
+							PX4_ERR("index already in use.");
+							return false;
+						}
+					}
+					return val != 0;
+				});
+	} else if (strcmp(args[1], "weight") == 0) {
+		return set_val("weight", item->_weight,
+				[&args]() { return atof(args[2]);},
+				[](float val) { return !(expect_eq(val, 0) || val < 0); });
+	} else if (strcmp(args[1], "area_x") == 0) {
+		return set_val("area_x", item->_area_x,
+				[&args]() { return atof(args[2]);},
+				[](float val) { return !(expect_eq(val, 0) || val < 0); });
+	} else if (strcmp(args[1], "area_y") == 0) {
+		return set_val("area_y", item->_area_y,
+				[&args]() { return atof(args[2]);},
+				[](float val) { return !(expect_eq(val, 0) || val < 0); });
+	} else if (strcmp(args[1], "drag_coef") == 0) {
+		return set_val("drag_coef", item->_drag_coef,
+				[&args]() { return atof(args[2]);},
+				[](float val) { return !(expect_eq(val, 0) || val < 0); });
+	} else if (strcmp(args[1], "pwm_id") == 0) {
+		return set_val("pwm_id", item->_pwm_id,
+				[&args]() { return atoi(args[2]);},
+				[](int val) { return (val < 0); });
+	} else if (strcmp(args[1], "pwm_open") == 0) {
+		return set_val("pwm_open", item->_pwm_open_freq,
+				[&args]() { return atoi(args[2]);},
+				[](int val) { return (val < 0); });
+	} else if (strcmp(args[1], "pwm_close") == 0) {
+		return set_val("pwm_close", item->_pwm_close_freq,
+				[&args]() { return atoi(args[2]);},
+				[](int val) { return (val < 0); });
+	} else if (strcmp(args[1], "alt") == 0) {
+		return set_val("alt", item->_altitude,
+				[&args]() { return atof(args[2]);},
+				[](float val) { return !(expect_eq(val, 0) || val < 0); });
+	} else if (strcmp(args[1], "lat") == 0) {
+		return set_val("lat", item->_destination_lat,
+				[&args]() { return strtod(args[2], NULL);},
+				[](double val) { return !(expect_eq(val, 0) || val < 0); });
+	} else if (strcmp(args[1], "lon") == 0) {
+		return set_val("lon", item->_destination_lon,
+				[&args]() { return strtod(args[2], NULL);},
+				[](double val) { return !(expect_eq(val, 0) || val < 0); });
+	} else {
+		PX4_ERR("Can't find field by specified name.");
+		return PX4_ERROR;
+	}
 	return PX4_OK;
 }
 
 /* remove an existing payload by its index */
-bool PayloadDeployer::remove(int argc, char *argv[]) {
-
+bool PayloadDeployer::remove(int size, char *args[]) {
+	unsigned	index = (atoi(args[0]) > USHRT_MAX ||
+				 atoi(args[0]) <= 0)? 0 : atoi(args[0]);
+	for (Payload *it: _payloads) {
+		if (it->_index == index) {
+			_payloads.remove(it);
+			PX4_INFO("Payload removed");
+			return PX4_OK;
+		}
+	}
+	PX4_WARN("Couldn't find payload with index.\n");
 	return PX4_OK;
 }
 
 /* test servo of payload by its index*/
-bool PayloadDeployer::test_servo(int argc, char *argv[]) {
+bool PayloadDeployer::test_servo(int size, char *args[]) {
 
 	return PX4_OK;
 }
 
 /* list added payloads */
 bool PayloadDeployer::list() {
-	printf("[Index]  [Weight(kg)]  [area_x(sqm)]  [area_y(sqm)]  [drag_coef]  [pwm_id]  [pwm_open]  [pwm_close]  [alt(m)]  [lat(WGS84)]    [lon(WGS84)]\n");
+	printf("[index]  [weight(kg)]  [area_x(sqm)]  [area_y(sqm)]  [drag_coef]  [pwm_id]  [pwm_open]  [pwm_close]  [alt(m)]  [lat(WGS84)]    [lon(WGS84)]\n");
 	for (const Payload *it: _payloads) {
 		printf(" %-7d  %-12.5f  %-13.5f  %-13.5f  %-11.5f  %-8d  %-10d  %-11d  %-7.2f  %-12.10lf    %-12.10lf\n",
 			it->_index,
@@ -171,8 +266,8 @@ its destination (lat, lon) from specified drop altitude with smallest margin err
 Number of payloads is not limited, however each payload
 must have its unique drop priority index (the smaller the sooner).
 
-	add [index: int] [weight(kg): float] [area_x(sqm): float] [area_y(sqm): float] [drag_coef: float] \
-[alt(m): float] [lat: double] [lon: double] [pwm_id: int] [pwm_open_freq: int] [pwm_close_freq: int]");
+	add [index: unsigned] [weight(kg): float] [area_x(sqm): float] [area_y(sqm): float] [drag_coef: float] \
+[alt(m): float] [lat(WGS84): double] [lon(WGS84): double] [pwm_id: int] [pwm_open: int] [pwm_close: int]");
 		example:
 			add  1050  1.2  0.01  0.042  0.1  150  40.175885  44.612789  12  950  1450
 	edit [index] [FIELD_NAME] [NEW_VALUE]
