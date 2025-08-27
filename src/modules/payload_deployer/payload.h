@@ -3,7 +3,7 @@
 
 struct Payload: public IntrusiveSortedListNode<Payload *>
 {
-	Payload(int index, float weight, float area_x, float area_y,
+	Payload(unsigned index, float weight, float area_x, float area_y,
 		float drag_coef, float altitude,
 		double destination_lat, double destination_lon,
 		int pwm_id, int pwm_open_freq, int pwm_close_freq)
@@ -23,7 +23,7 @@ struct Payload: public IntrusiveSortedListNode<Payload *>
 	inline bool operator<=(const Payload &other) const {
 		return _index <= other._index;
 	}
-	int _index;
+	unsigned _index;
 	float _weight;
 	float _area_x;
 	float _area_y;

@@ -71,21 +71,20 @@ public:
 	int print_status() override;
 
 	/* add a new payload */
-	bool add(int argc, char *argv[]);
+	static bool add(int argc, char *argv[]);
 
 	/* edit an existing payload by its index */
-	bool edit(int argc, char *argv[]);
+	static bool edit(int argc, char *argv[]);
 
 	/* remove an existing payload by its index */
-	bool remove(int argc, char *argv[]);
+	static bool remove(int argc, char *argv[]);
 
 	/* test servo of payload by its index*/
-	bool test_servo(int argc, char *argv[]);
+	static bool test_servo(int argc, char *argv[]);
 
 	/* list added payloads */
-	bool list();
+	static bool list();
 
 private:
-
 	static IntrusiveSortedList<Payload *> _payloads;
 };
