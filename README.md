@@ -11,8 +11,10 @@
 ### simulator issues
 
 In case Gazebo does not start or show picture, change its engine to a tested one that works on your machine.
+
 `(bash): export PX4_GZ_SIM_RENDER_ENGINE=ogre`
-In case it fails try building with `jmavsim`
+
+If it fails too, try change the simulator to `jmavsim`
  
 ## Supported Hardware
 
