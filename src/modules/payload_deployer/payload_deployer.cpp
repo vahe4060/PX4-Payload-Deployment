@@ -45,6 +45,8 @@ inline bool expect_eq(double a, double b, double eps = 1e-9) {
 
 IntrusiveSortedList<Payload *> PayloadDeployer::_payloads;
 
+unsigned PayloadDeployer::_active_item = 0;
+
 PayloadDeployer::PayloadDeployer()
 	: ModuleBase<PayloadDeployer>()
 	, ModuleParams(nullptr)
@@ -73,8 +75,11 @@ int PayloadDeployer::task_spawn(int argc, char *argv[]) {
 /* add a new payload */
 bool PayloadDeployer::add(int size, char *args[]) {
 	if (size != 11) {
-		PX4_ERR("Invalid number of arguments");
-		return PX4_ERROR;
+		PX4_WARN("Usage:");
+		printf("payload_deployer add [index: unsigned] [weight(kg): float] [area_x(sqm): float] [area_y(sqm): float] [drag_coef: float]");
+		printf(" [alt(m): float] [lat(WGS84): double] [lon(WGS84): double] [pwm_id: int] [pwm_open: int] [pwm_close: int]\n");
+		printf("example:\n\tpayload_deployer add 15 0.3 0.007 0.0022 0.42 200 35.143214165 42.55138791202 14 1500 990\n");
+		return PX4_OK;
 	}
 	unsigned	index = (atoi(args[0]) > USHRT_MAX ||
 				 atoi(args[0]) <= 0)? 0 : atoi(args[0]);
@@ -111,8 +116,14 @@ bool PayloadDeployer::add(int size, char *args[]) {
 
 /* edit an existing payload by its index */
 bool PayloadDeployer::edit(int size, char *args[]) {
-	if (size != 3)
-		return print_usage("payload_deployer edit INDEX FIELD_NAME NEW_VALUE");
+	if (size != 3) {
+		PX4_WARN("Usage:");
+		printf("payload_deployer edit INDEX FIELD_NAME NEW_VALUE\n\
+example:\n\
+\tpayload_deployer edit 15 area_x 0.0048\n");
+		return PX4_OK;
+	}
+
 	unsigned	index = (atoi(args[0]) > USHRT_MAX ||
 				 atoi(args[0]) <= 0)? 0 : atoi(args[0]);
 	Payload *item = nullptr;
@@ -198,6 +209,13 @@ bool PayloadDeployer::edit(int size, char *args[]) {
 
 /* remove an existing payload by its index */
 bool PayloadDeployer::remove(int size, char *args[]) {
+	if (size != 1) {
+		PX4_WARN("Usage:");
+		printf("payload_deployer remove INDEX\n\
+example:\n\
+\tpayload_deployer remove 15\n");
+		return PX4_OK;
+	}
 	unsigned	index = (atoi(args[0]) > USHRT_MAX ||
 				 atoi(args[0]) <= 0)? 0 : atoi(args[0]);
 	for (Payload *it: _payloads) {
@@ -237,6 +255,54 @@ bool PayloadDeployer::list() {
 	return PX4_OK;
 }
 
+/* start deployment of payloads, if index is not specified, all payloads will be deployed by their order */
+bool PayloadDeployer::launch(int size, char *args[]) {
+	if (size > 1) {
+		PX4_WARN("Usage:");
+		printf("payload_deployer launch [[INDEX]]\n\
+example:\n\
+\tpayload_deployer launch 15 // launch 1 item\n\
+example:\n\
+\tpayload_deployer launch // launch all\n");
+		return PX4_OK;
+	}
+	if (_active_item != 0)
+		PX4_WARN("Another item is already launched, please cancel it first.\n");
+	else if (size == 1) { // launch for specified index only
+		unsigned index = (atoi(args[0]) > USHRT_MAX ||
+				 atoi(args[0]) <= 0)? 0 : atoi(args[0]);
+		const Payload *item{nullptr};
+		for (const Payload *it: _payloads)
+			if (it->_index == index) {
+				item = it;
+				break;
+			}
+		if (!item) {
+			PX4_ERR("Invalid index");
+			return PX4_ERROR;
+		}
+		// Generate mission for item
+		_active_item = index;
+	}
+	else if (_payloads.size() == 0) { // launch for all
+		PX4_WARN("Nothing to launch.");
+	}
+	else {
+		// generate mission for all
+		_active_item = 1;
+	}
+	return PX4_OK;
+}
+
+/* cancel deployment of payloads and stop vehicle where it is */
+bool PayloadDeployer::cancel() {
+	if (_active_item) {
+		// cancel mission
+		_active_item = 0;
+	}
+	return PX4_OK;
+}
+
 int PayloadDeployer::custom_command(int argc, char *argv[]) {
 	if (argc == 0)
 		return print_usage();
@@ -250,6 +316,10 @@ int PayloadDeployer::custom_command(int argc, char *argv[]) {
 		return test_servo(argc - 1, argv + 1);
 	else if (strcmp(argv[0], "list") == 0)
 		return list();
+	else if (strcmp(argv[0], "launch") == 0)
+		return launch(argc - 1, argv + 1);
+	else if (strcmp(argv[0], "cancel") == 0)
+		return cancel();
 	return print_usage("Unrecognized command");
 }
 
@@ -261,24 +331,7 @@ int PayloadDeployer::print_usage(const char *reason) {
 	PRINT_MODULE_DESCRIPTION(
 		R"DESCR_STR(
 ### Description
-Handles payload deployment for each item based on its aerodynamic properties so that it reaches to
-its destination (lat, lon) from specified drop altitude with smallest margin error.
-Number of payloads is not limited, however each payload
-must have its unique drop priority index (the smaller the sooner).
-
-	add [index: unsigned] [weight(kg): float] [area_x(sqm): float] [area_y(sqm): float] [drag_coef: float] \
-[alt(m): float] [lat(WGS84): double] [lon(WGS84): double] [pwm_id: int] [pwm_open: int] [pwm_close: int]");
-		example:
-			add  1050  1.2  0.01  0.042  0.1  150  40.175885  44.612789  12  950  1450
-	edit [index] [FIELD_NAME] [NEW_VALUE]
-		example:
-			edit  1050  weight  1.35
-	test_servo [index]
-		example:
-			test_servo  1050
-	remove [index]
-		example:
-			remove  1050
+Handles payload deployment for each item based on its aerodynamic properties.
 )DESCR_STR");
 	PRINT_MODULE_USAGE_NAME("payload_deployer", "command");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("add [index ...]", "Add a new payload.");
@@ -286,6 +339,8 @@ must have its unique drop priority index (the smaller the sooner).
 	PRINT_MODULE_USAGE_COMMAND_DESCR("test_servo [index]", "Test servo open/close functionality.");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("remove [index]", "Remove the payload.");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("list", "List the payloads.");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("launch [[index]]", "launch deployment, if index not specified all will be deployed by their order.");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("cancel", "List the payloads.");
 	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
 	return PX4_OK;
 }

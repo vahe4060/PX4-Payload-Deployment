@@ -1,4 +1,4 @@
-# PX4 Drone Autopilot for Payload Deployment  
+# PX4 Drone Autopilot for Payload Deployment
 
 ## How to Use
 
@@ -8,14 +8,16 @@
 ### Setup PX4 dev environment
 `(bash): source ./Tools/setup/ubuntu.sh`
 
-### simulator issues
+
+### Simulator issues
 
 In case Gazebo does not start or show picture, change its engine to a tested one that works on your machine.
 
 `(bash): export PX4_GZ_SIM_RENDER_ENGINE=ogre`
 
-If it fails too, try change the simulator to `jmavsim`
- 
+If it fails too, try using `jmavsim` simulator instead.
+
+
 ## Supported Hardware
 
 For the most up to date information, please visit [PX4 User Guide > Autopilot Hardware](https://docs.px4.io/main/en/flight_controller/).

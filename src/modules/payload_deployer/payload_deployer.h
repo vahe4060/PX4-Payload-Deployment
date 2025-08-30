@@ -85,6 +85,12 @@ public:
 	/* list added payloads */
 	static bool list();
 
+	/* start deployment of payloads, if index is not specified, all payloads will be deployed by their order */
+	static bool launch(int argc, char *argv[]);
+
+	/* cancel deployment of payloads and stop vehicle where it is */
+	static bool cancel();
 private:
-	static IntrusiveSortedList<Payload *> _payloads;
+	static IntrusiveSortedList<Payload *> _payloads; // list of added payloads, sorted by index
+	static unsigned _active_item; // index of item that is currently being deployed
 };
