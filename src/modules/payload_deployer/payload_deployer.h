@@ -33,13 +33,22 @@
 
 /**
  * @file payload_deployer.h
- * @author Vahe Yepremyan (vahe200000@gmail.com)
+ * @author Vahe Yepremyan (vahe4060@gmail.com)
  */
 #pragma once
 
 #include <px4_platform_common/module.h>
 #include <px4_platform_common/module_params.h>
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
+
+#include <uORB/Publication.hpp>
+#include <uORB/Subscription.hpp>
+#include <uORB/SubscriptionCallback.hpp>
+
+#include <uORB/topics/vehicle_command.h>
+#include <uORB/topics/vehicle_command_ack.h>
+#include <uORB/topics/parameter_update.h>
+
 #include "payload.h"
 
 using namespace time_literals;
@@ -61,11 +70,6 @@ public:
 
 	/** @see ModuleBase. Override "status" output when invoked via Commandline, to give detailed status **/
 	static int print_usage(const char *reason = nullptr);
-
-	/**
-	 * @brief Main Run function that runs when subscription callback is triggered
-	 */
-	void Run() override;
 
 	/** @see ModuleBase::print_status() */
 	int print_status() override;
@@ -91,6 +95,21 @@ public:
 	/* cancel deployment of payloads and stop vehicle where it is */
 	static bool cancel();
 private:
+	/**
+	 * @brief Main Run function that runs when subscription callback is triggered
+	 */
+	void Run() override;
+
+	void parameter_update();
+
+	// Subscription
+	uORB::SubscriptionCallbackWorkItem _vehicle_command_sub{this, ORB_ID(vehicle_command)};
+	uORB::SubscriptionInterval         _parameter_update_sub{ORB_ID(parameter_update), 1_s}; // subscription limited to 1 Hz updates
+
+	// Publications
+	uORB::Publication<vehicle_command_ack_s> _vehicle_command_ack_pub{ORB_ID(vehicle_command_ack)};
+	uORB::Publication<vehicle_command_s> _vehicle_command_pub{ORB_ID(vehicle_command)};
+
 	static IntrusiveSortedList<Payload *> _payloads; // list of added payloads, sorted by index
 	static unsigned _active_item; // index of item that is currently being deployed
 };

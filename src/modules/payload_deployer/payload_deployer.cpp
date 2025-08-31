@@ -51,9 +51,11 @@ PayloadDeployer::PayloadDeployer()
 	: ModuleBase<PayloadDeployer>()
 	, ModuleParams(nullptr)
 	, ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::lp_default)
-{}
+{
+	ScheduleOnInterval(100_ms);
+}
 
-/* idk for now */
+/* initialize instance */
 int PayloadDeployer::task_spawn(int argc, char *argv[]) {
 	PayloadDeployer *instance = new PayloadDeployer();
 	if (instance) {
@@ -346,7 +348,22 @@ Handles payload deployment for each item based on its aerodynamic properties.
 }
 
 void PayloadDeployer::Run() {
+	if (should_exit()) {
+		ScheduleClear();
+		_vehicle_command_sub.unregisterCallback();
+		return;
+	}
 
+	if (_parameter_update_sub.updated()) {
+		parameter_update_s param_update_dummy;
+		_parameter_update_sub.copy(&param_update_dummy);
+		parameter_update();
+	}
+}
+
+void PayloadDeployer::parameter_update()
+{
+	updateParams();
 }
 
 /** @see ModuleBase::print_status() */
