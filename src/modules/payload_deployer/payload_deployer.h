@@ -71,6 +71,9 @@ public:
 	/** @see ModuleBase. Override "status" output when invoked via Commandline, to give detailed status **/
 	static int print_usage(const char *reason = nullptr);
 
+	// Initializes the module
+	bool init();
+
 	/** @see ModuleBase::print_status() */
 	int print_status() override;
 

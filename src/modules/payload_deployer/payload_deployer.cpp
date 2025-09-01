@@ -51,8 +51,18 @@ PayloadDeployer::PayloadDeployer()
 	: ModuleBase<PayloadDeployer>()
 	, ModuleParams(nullptr)
 	, ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::lp_default)
+{}
+
+bool PayloadDeployer::init()
 {
 	ScheduleOnInterval(100_ms);
+
+	if (!_vehicle_command_sub.registerCallback()) {
+		PX4_ERR("Callback registration failed");
+		return false;
+	}
+
+	return true;
 }
 
 /* initialize instance */
@@ -61,11 +71,11 @@ int PayloadDeployer::task_spawn(int argc, char *argv[]) {
 	if (instance) {
 		_object.store(instance);
 		_task_id = task_id_is_work_queue;
-		return PX4_OK;
+		if (instance->init())
+			return PX4_OK;
 	}
-	else {
-		PX4_ERR("Alloc failed");
-	}
+	else
+		PX4_ERR("Allocation failed");
 	// Cleanup instance in memory and mark this module as invalid to run
 	delete instance;
 	_object.store(nullptr);
@@ -341,8 +351,8 @@ Handles payload deployment for each item based on its aerodynamic properties.
 	PRINT_MODULE_USAGE_COMMAND_DESCR("test_servo [index]", "Test servo open/close functionality.");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("remove [index]", "Remove the payload.");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("list", "List the payloads.");
-	PRINT_MODULE_USAGE_COMMAND_DESCR("launch [[index]]", "launch deployment, if index not specified all will be deployed by their order.");
-	PRINT_MODULE_USAGE_COMMAND_DESCR("cancel", "List the payloads.");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("launch [[index]]", "Launch deployment, if index not specified all will be deployed by their order.");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("cancel", "Stop deplyment and hold vechicle.");
 	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
 	return PX4_OK;
 }
@@ -351,6 +361,7 @@ void PayloadDeployer::Run() {
 	if (should_exit()) {
 		ScheduleClear();
 		_vehicle_command_sub.unregisterCallback();
+		exit_and_cleanup();
 		return;
 	}
 
